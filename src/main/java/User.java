@@ -7,6 +7,8 @@ public class User implements Serializable {
     private String username;
     private String password;
     private String email;
+    // role of the user (e.g., customer, agent, admin). May be null until set.
+    private String role;
 
     public User(String username, String password, String email) {
         // Do not pre-assign an id here; the database will generate it.
@@ -14,6 +16,7 @@ public class User implements Serializable {
         this.username = username;
         this.password = password;
         this.email = email;
+        this.role = null;
     }
 
     public Integer getId() {
@@ -38,6 +41,14 @@ public class User implements Serializable {
 
     public void setEmail(String email) {
         this.email = email;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 
     public void setId(Integer id) {

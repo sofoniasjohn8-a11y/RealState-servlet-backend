@@ -30,43 +30,63 @@ protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws S
     // Use a single PrintWriter and handle errors explicitly
     PrintWriter out = resp.getWriter();
 
-    try {
+        try {
         String username = null;
         String password = null;
         String email = null;
+        String role = null;
+        String licenseNumber = null;
 
-        // 1. Parse JSON
+        // 1. Parse JSON body into a simple map
         try (BufferedReader reader = req.getReader()) {
             Map<String, String> data = gson.fromJson(reader, new TypeToken<Map<String, String>>() {}.getType());
             if (data != null) {
                 username = data.get("username");
                 password = data.get("password");
                 email = data.get("email");
+                role = data.get("role");
+                licenseNumber = data.get("licenseNumber");
             }
         }
 
         // 2. Validation
-        if (username == null || password == null || username.isEmpty()) {
+        if (username == null || username.isEmpty() || password == null || password.isEmpty()) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            out.print(gson.toJson(Map.of("success", false, "message", "Missing credentials")));
+            out.print(gson.toJson(Map.of("success", false, "message", "username and password required")));
             return;
         }
 
         // 3. Database Operation
         User u = new User(username, password, email == null ? "" : email);
-        boolean ok = JdbcAuthDAO.registerUser(u);
+
+        // If role is AGENT, validate license before attempting registration so we can return 400
+        if (role != null && "AGENT".equalsIgnoreCase(role)) {
+            if (licenseNumber == null || licenseNumber.isEmpty()) {
+                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                out.print(gson.toJson(Map.of("success", false, "message", "invalid or missing licenseNumber")));
+                return;
+            }
+            if (!JdbcAuthDAO.licenseExists(licenseNumber)) {
+                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                out.print(gson.toJson(Map.of("success", false, "message", "invalid licenseNumber")));
+                return;
+            }
+        }
+
+        boolean ok = JdbcAuthDAO.registerUserWithRole(u, role, licenseNumber);
 
         if (ok) {
             resp.setStatus(HttpServletResponse.SC_OK);
-            // Be careful: Map.of fails if u.getId() is null!
+            String roleOut = (role == null || role.isEmpty()) ? "customer" : role.toLowerCase();
             out.print(gson.toJson(Map.of(
-                "success", true, 
-                "message", "User registered", 
-                "userId", (u.getId() != 0 ? u.getId() : "N/A")
+                "success", true,
+                "message", "User registered",
+                "userId", (u.getId() != null ? u.getId() : "N/A"),
+                "role", roleOut
             )));
         } else {
             resp.setStatus(HttpServletResponse.SC_CONFLICT);
-            out.print(gson.toJson(Map.of("success", false, "message", "User already exists")));
+            out.print(gson.toJson(Map.of("success", false, "message", "User already exists or license invalid")));
         }
 
     } catch (Exception e) {
@@ -78,6 +98,13 @@ protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws S
         out.close();
     }
 }
+
+    @Override
+    protected void doOptions(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        // Handle CORS preflight
+        setCorsHeaders(resp);
+        resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
+    }
 
     private void setCorsHeaders(HttpServletResponse resp) {
         // adjust CORS policy as appropriate for your app

@@ -61,8 +61,10 @@ public class UserLoginServlet extends HttpServlet {
         // create token and return it. If user id is null (in-memory users), use 0 as id.
         int uid = (u.getId() == null) ? 0 : u.getId();
         String token = TokenUtil.createToken(uid, u.getUsername(), 24 * 60 * 60); // 1 day
+        // include role in the response; default to "customer" when not present
+        String roleOut = (u.getRole() == null || u.getRole().isEmpty()) ? "customer" : u.getRole().toLowerCase();
         resp.setStatus(HttpServletResponse.SC_OK);
-        out.print("{\"status\":200,\"success\":true,\"message\":\"login successful\",\"userId\":" + uid + ",\"username\":\"" + escape(u.getUsername()) + "\",\"token\":\"" + escape(token) + "\"}");
+        out.print("{\"status\":200,\"success\":true,\"message\":\"login successful\",\"userId\":" + uid + ",\"username\":\"" + escape(u.getUsername()) + "\",\"role\":\"" + escape(roleOut) + "\",\"token\":\"" + escape(token) + "\"}");
     }
 
     private static void setCorsHeaders(HttpServletResponse resp) {

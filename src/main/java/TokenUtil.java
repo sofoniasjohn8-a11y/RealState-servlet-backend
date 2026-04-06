@@ -48,6 +48,35 @@ public class TokenUtil {
         }
     }
 
+    /**
+     * Extract the "sub" claim (user id) from the token payload. Returns null if missing or invalid.
+     */
+    public static Integer getUserIdFromToken(String token) {
+        try {
+            if (token == null) return null;
+            String[] parts = token.split("\\.");
+            if (parts.length != 3) return null;
+            String payloadJson = new String(base64UrlDecode(parts[1]), StandardCharsets.UTF_8);
+            String sub = extractJsonValue(payloadJson, "sub");
+            if (sub == null) return null;
+            return Integer.valueOf(sub);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static String getUsernameFromToken(String token) {
+        try {
+            if (token == null) return null;
+            String[] parts = token.split("\\.");
+            if (parts.length != 3) return null;
+            String payloadJson = new String(base64UrlDecode(parts[1]), StandardCharsets.UTF_8);
+            return extractJsonValue(payloadJson, "username");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static byte[] hmacSha256(byte[] data, byte[] key) throws Exception {
         Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(key, "HmacSHA256"));
